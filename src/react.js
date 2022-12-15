@@ -17,9 +17,8 @@ class Component {
         this.parent.append(this.currentElement);
     }
 
-    getDomElement() {
-        const reactElement = this.render();
-        let element = document.createElement(this.reactElement.type);   
+    createElementAndAddProps(reactElement) {
+        let element = document.createElement(reactElement.type);   
         if (reactElement.props.id !== undefined) {
             element.id = reactElement.props.id;
         }
@@ -32,14 +31,36 @@ class Component {
         if (reactElement.props.onMouseEnter !== undefined) {
             element.addEventListener('mouseenter', reactElement.props.onMouseEnter);
         }
+        return element;
     }
 
-    firstRender(parent) {
-        this.parent = parent;
-        this.currentElement = this.render();
-        this.parent.append(this.currentElement);
+    getDomElement() {
+        const reactElement = this.render();
+        // We assume that the top level element is an HTML type
+        // There is no reason for the top level element to ever be a React type
+        const result = this.createElementAndAddProps(reactElement);
+
+        for (let child of reactElement.children) {
+            if (typeof child.type === 'string') {
+                const childDomElement = this.createElementAndAddProps(child);
+                result.append(childDomElement);
+            } else if (typeof child.type === 'function') {
+                const component = new child.type(child.props);
+                result.append(component.getDomElement());
+            }
+        }
+        return result;
     }
+
 };
+
+class ReactElement {
+    constructor(type, props, ...children) {
+        this.type = type;
+        this.props = props;
+        this.children = children;
+    }
+}
 
 class Root {
     constructor(container) {
@@ -47,7 +68,12 @@ class Root {
     }
 
     render(element) {
-
+        if (element.type === 'function') {
+            const reactElement = new element.type(element.props);
+            this.container.append(reactElement.getDomElement());
+        } else {
+            console.log('top level render must be a react component');
+        }
     }
 }
 
@@ -56,11 +82,7 @@ function createRoot(type) {
 }
 
 function createElement(type, props, ...children) {
-    return {
-        type,
-        props,
-        children
-    };
+    return new ReactElement(type, props, children);
 }
 
 module.exports = {
