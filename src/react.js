@@ -18,6 +18,7 @@ class Component {
     }
 
     createElementAndAddProps(reactElement) {
+        console.log('create element and add props ', reactElement);
         let element = document.createElement(reactElement.type);   
         if (reactElement.props.id !== undefined) {
             element.id = reactElement.props.id;
@@ -33,23 +34,55 @@ class Component {
         }
         return element;
     }
+    
+    // renderArray(array) {
+    //     for (let nestedChild of child) {
+    //         console.log('array child', child, nestedChild);
+    //         appendElement(result, nestedChild);
+    //     }
+    // }
 
-    getDomElement() {
-        const reactElement = this.render();
+    // appendElement(parent, reactElement) {
+
+    // }
+
+    renderReactElement(reactElement) {
+        console.log('calling render react element ', reactElement);
         // We assume that the top level element is an HTML type
         // There is no reason for the top level element to ever be a React type
         const result = this.createElementAndAddProps(reactElement);
 
         for (let child of reactElement.children) {
-            if (typeof child.type === 'string') {
-                const childDomElement = this.createElementAndAddProps(child);
-                result.append(childDomElement);
-            } else if (typeof child.type === 'function') {
-                const component = new child.type(child.props);
-                result.append(component.getDomElement());
+            const appendElement = (parent, reactElement) => {
+                console.log('append element called', parent, reactElement);
+                if (reactElement instanceof Array) {
+
+                } else if (typeof reactElement.type === 'string') {
+                    const childDomElement = this.renderReactElement(reactElement);
+                    console.log('inside problem', childDomElement);
+                    parent.append(childDomElement);
+                } else if (typeof reactElement.type === 'function') {
+                    const component = new reactElement.type(reactElement.props);
+                    parent.append(component.getDomElement());
+                }
             }
+
+            if (child instanceof Array) {
+                for (let nestedChild of child) {
+                    console.log('array child', child, nestedChild);
+                    appendElement(result, nestedChild);
+                }
+            } else {
+                appendElement(result, child);
+            }
+
         }
         return result;
+    }
+
+    getDomElement() {
+        const reactElement = this.render();
+        return this.renderReactElement(reactElement);
     }
 
 };
@@ -68,7 +101,8 @@ class Root {
     }
 
     render(element) {
-        if (element.type === 'function') {
+        if (typeof element.type === 'function') {
+            console.log('here')
             const reactElement = new element.type(element.props);
             this.container.append(reactElement.getDomElement());
         } else {
@@ -77,8 +111,8 @@ class Root {
     }
 }
 
-function createRoot(type) {
-    return new Root();
+function createRoot(container) {
+    return new Root(container);
 }
 
 function createElement(type, props, ...children) {
