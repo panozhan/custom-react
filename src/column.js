@@ -6,6 +6,7 @@ class Column extends React.Component {
     this.columnId = props.columnId;
   }
   handleClicked() {
+    console.log('clicked');
     this.props.onColumnClicked(this.columnId);
   }
   handleMouseEnter() {

@@ -36,6 +36,7 @@ class Game extends React.Component {
         player: state.player === PLAYER.ONE ? PLAYER.TWO : PLAYER.ONE
       };
     });
+    console.log('clicked', this.state);
   }
   onMouseEnter(columnId) {
     this.setState({

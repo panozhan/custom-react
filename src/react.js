@@ -6,83 +6,103 @@ class Component {
     setState(arg) {
         if (typeof arg === 'function') {
             const newState = arg(this.state, this.props);
+            for (let prop in newState) {
+                if (this.state.hasOwnProperty(prop)) {
+                   this.state[prop] = newState[prop]; 
+                }
+            }
             this.state = newState;
         } else if (typeof arg === 'object') {
-            this.state = arg;
+            for (let prop in arg) {
+                if (this.state.hasOwnProperty(prop)) {
+                   this.state[prop] = arg[prop]; 
+                }
+            }
         }
         
         // remember, this.currentElement is a Element (https://developer.mozilla.org/en-US/docs/Web/API/Element)
+        const parent = this.currentElement.parentElement;
         this.currentElement.remove();
-        this.currentElement = this.getDomElement();
-        this.parent.append(this.currentElement);
+        this.currentElement = Component.renderHtmlElement(this.render());
+        parent.append(this.currentElement);
     }
 
-    createElementAndAddProps(reactElement) {
-        console.log('create element and add props ', reactElement);
-        let element = document.createElement(reactElement.type);   
-        if (reactElement.props.id !== undefined) {
-            element.id = reactElement.props.id;
+    static renderHtmlElement(element) {
+        if (!(element instanceof ReactElement)) {
+            console.log(`Error: we encountered an item that is not an object created using React.CreateElement ${item}`);
+            return null;
         }
-        if (reactElement.props.className !== undefined) {
-            element.className = reactElement.props.className;
+        let result = document.createElement(element.type);   
+        if (element.props.id !== undefined) {
+            result.id = element.props.id;
         }
-        if (reactElement.props.onClick !== undefined) {
-            element.addEventListener('click', reactElement.props.onClick);
+        if (element.props.className !== undefined) {
+            result.className = element.props.className;
         }
-        if (reactElement.props.onMouseEnter !== undefined) {
-            element.addEventListener('mouseenter', reactElement.props.onMouseEnter);
+        if (element.props.onMouseEnter !== undefined) {
+            result.addEventListener('mouseenter', element.props.onMouseEnter);
         }
-        return element;
-    }
-    
-    // renderArray(array) {
-    //     for (let nestedChild of child) {
-    //         console.log('array child', child, nestedChild);
-    //         appendElement(result, nestedChild);
-    //     }
-    // }
-
-    // appendElement(parent, reactElement) {
-
-    // }
-
-    renderReactElement(reactElement) {
-        console.log('calling render react element ', reactElement);
-        // We assume that the top level element is an HTML type
-        // There is no reason for the top level element to ever be a React type
-        const result = this.createElementAndAddProps(reactElement);
-
-        for (let child of reactElement.children) {
-            const appendElement = (parent, reactElement) => {
-                console.log('append element called', parent, reactElement);
-                if (reactElement instanceof Array) {
-
-                } else if (typeof reactElement.type === 'string') {
-                    const childDomElement = this.renderReactElement(reactElement);
-                    console.log('inside problem', childDomElement);
-                    parent.append(childDomElement);
-                } else if (typeof reactElement.type === 'function') {
-                    const component = new reactElement.type(reactElement.props);
-                    parent.append(component.getDomElement());
-                }
+        if (element.props.style !== undefined ) {
+            const styles = element.props.style;
+            if (styles.left !== undefined) {
+                result.style.left = styles.left;
             }
-
-            if (child instanceof Array) {
-                for (let nestedChild of child) {
-                    console.log('array child', child, nestedChild);
-                    appendElement(result, nestedChild);
-                }
-            } else {
-                appendElement(result, child);
-            }
-
+        }
+        if (element.children.length !== 0) {
+            Component.processChildren(element, result);
         }
         return result;
     }
 
-    getDomElement() {
-        const reactElement = this.render();
-        return this.renderReactElement(reactElement);
+    static renderGenericItem(item) {
+        if (item instanceof Array) {
+            return Component.renderReactArray(item);
+        } else if (item instanceof ReactElement) {
+            if (typeof item.type === 'string') {
+                return Component.renderHtmlElement(item);
+            } else if (typeof item.type === 'function') {
+                return Component.renderReactElement(item);
+            } else {
+                console.log(`Error: we encountered a ReactElement whose type is neither a string nor function`, item);
+                return null;
+            }
+        } else {
+            console.log(`Error: we encountered an item that is neither an array nor an object created using React.CreateElement`, item);
+            return null;
+        }
+    }
+    
+    static renderReactArray(array) {
+        let result = [];
+        for (let item of array) {
+            const transformedItem = Component.renderGenericItem(item);
+            if (transformedItem !== null) {
+                if (transformedItem instanceof Array) {
+                    result = result.concat(transformedItem);
+                } else {
+                    result.push(transformedItem);
+                }
+            }
+        }
+        return result;
+    }
+
+    static processChildren(element, parent) {
+        if (element.children.length !== 0) {
+            for (let domElement of Component.renderReactArray(element.children)) {
+                parent.append(domElement);
+            }
+        }
+    }
+
+    static renderReactElement(reactElement) {
+        // We assume that the top level element is an HTML element
+        // There is no reason for the top level element to ever be a React type
+        const component = new reactElement.type(reactElement.props);
+        const componentReactElement = component.render();
+        const result = Component.renderHtmlElement(componentReactElement);
+        component.currentElement = result;
+        return result;
     }
 
 };
@@ -102,11 +122,9 @@ class Root {
 
     render(element) {
         if (typeof element.type === 'function') {
-            console.log('here')
-            const reactElement = new element.type(element.props);
-            this.container.append(reactElement.getDomElement());
+            this.container.append(Component.renderReactElement(element));
         } else {
-            console.log('top level render must be a react component');
+            console.log('Error: top level render must be a react component');
         }
     }
 }
